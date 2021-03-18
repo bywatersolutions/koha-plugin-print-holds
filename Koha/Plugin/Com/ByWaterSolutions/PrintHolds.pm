@@ -62,13 +62,6 @@ sub new {
 sub report {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
-
-    unless ( $cgi->param('output') ) {
-        $self->report_step1();
-    }
-    else {
-        $self->report_step2();
-    }
 }
 
 ## The existance of a 'tool' subroutine means the plugin is capable
@@ -79,14 +72,6 @@ sub tool {
     my ( $self, $args ) = @_;
 
     my $cgi = $self->{'cgi'};
-
-    unless ( $cgi->param('submitted') ) {
-        $self->tool_step1();
-    }
-    else {
-        $self->tool_step2();
-    }
-
 }
 
 ## If your tool is complicated enough to needs it's own setting/configuration
@@ -152,47 +137,6 @@ sub uninstall() {
     my $table = $self->get_qualified_table_name('mytable');
 
     return 1;
-}
-
-## These are helper functions that are specific to this plugin
-## You can manage the control flow of your plugin any
-## way you wish, but I find this is a good approach
-sub report_step1 {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-
-    my $template = $self->get_template({ file => 'report-step1.tt' });
-
-    $self->output_html( $template->output() );
-}
-
-sub report_step2 {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-
-    my $dbh = C4::Context->dbh;
-
-    my $template = $self->get_template({ file => $filename });
-
-    print $template->output();
-}
-
-sub tool_step1 {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-
-    my $template = $self->get_template({ file => 'tool-step1.tt' });
-
-    $self->output_html( $template->output() );
-}
-
-sub tool_step2 {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-
-    my $template = $self->get_template({ file => 'tool-step2.tt' });
-
-    $self->output_html( $template->output() );
 }
 
 =head3 cronjob_nightly
