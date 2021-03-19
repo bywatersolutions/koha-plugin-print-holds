@@ -9,17 +9,7 @@ use base qw(Koha::Plugins::Base);
 ## We will also need to include any Koha libraries we want to access
 use C4::Context;
 use C4::Auth;
-use Koha::Patron;
-use Koha::DateUtils;
-use Koha::Libraries;
-use Koha::Patron::Categories;
-use Koha::Account;
-use Koha::Account::Lines;
-use MARC::Record;
-use Cwd qw(abs_path);
-use Mojo::JSON qw(decode_json);;
-use URI::Escape qw(uri_unescape);
-use LWP::UserAgent;
+use YAML::XS;
 
 ## Here we set our plugin version
 our $VERSION = "{VERSION}";
@@ -37,14 +27,12 @@ our $metadata = {
     description     => 'Plugin to automatically print hold slips to printers as holds are placed',
 };
 
-## This is the minimum code required for a plugin's 'new' method
-## More can be added, but none should be removed
 sub new {
     my ( $class, $args ) = @_;
 
     ## We need to add our metadata here so our base class can access it
-    $args->{'metadata'} = $metadata;
-    $args->{'metadata'}->{'class'} = $class;
+    $args->{metadata} = $metadata;
+    $args->{metadata}->{class} = $class;
 
     ## Here, we call the 'new' method for our base class
     ## This runs some additional magic and checking
@@ -54,30 +42,94 @@ sub new {
     return $self;
 }
 
-## The existance of a 'report' subroutine means the plugin is capable
-## of running a report. This example report can output a list of patrons
-## either as HTML or as a CSV file. Technically, you could put all your code
-## in the report method, but that would be a really poor way to write code
-## for all but the simplest reports
-sub report {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
+sub after_hold_create {
+    my ( $self, $hold ) = @_;
+
+    my $printers = Load( $self->retrieve_data('printers_configuration') );
+
+    my $letter = GetPreparedLetter(
+        module      => 'reserves',
+        letter_code => 'HOLD_PLACED_PRINT',
+        branchcode  => $hold->{branchcode},
+        tables      => {
+            'branches'    => $hold->branchcode,
+            'biblio'      => $hold->biblionumber,
+            'biblioitems' => $hold->biblionumber,
+            'items'       => $hold->itemnumber,
+            'borrowers'   => $hold->borrowernumber,,
+        }
+    );
+
+    if ( defined $printers->{ $hold->{branchcode} } ) {
+		my ( $success, $error ) = $self->print(
+			{
+                printer => $printers->{ $hold->branchcode },
+				data    => $letter->{content},
+				is_html => $letter->{is_html},
+			}
+		);
+
+        warn "PrintHolds Plugin Error: $error" if $error;
+    }
 }
 
-## The existance of a 'tool' subroutine means the plugin is capable
-## of running a tool. The difference between a tool and a report is
-## primarily semantic, but in general any plugin that modifies the
-## Koha database should be considered a tool
-sub tool {
-    my ( $self, $args ) = @_;
+sub print {
+    my ( $self, $params ) = @_;
 
-    my $cgi = $self->{'cgi'};
+    my $printer = $params->{printer};
+    my $data    = $params->{data};
+    my $is_html = $params->{is_html};
+
+    return unless ($data);
+
+    if ($is_html) {
+        require HTML::HTMLDoc;
+        my $htmldoc = new HTML::HTMLDoc();
+        $htmldoc->set_output_format('ps');
+        $htmldoc->set_html_content($data);
+        my $doc = $htmldoc->generate_pdf();
+        $data = $doc->to_string();
+    }
+
+    my ( $result, $error );
+
+    if ( $printer->{queue} ) {
+
+        # Printer has a server:port address, use Net::Printer
+        require Net::Printer;
+
+        my ( $server, $port ) = split( /:/, $printer->{queue} );
+
+        my $p = new Net::Printer(
+            printer     => $printer->{name},
+            server      => $server,
+            port        => $port,
+            lineconvert => "YES"
+        );
+
+        $result = $p->printstring($data);
+
+        $error = $p->printerror();
+    }
+    else {
+        require Printer;
+
+        my $name = $printer->{name};
+
+        my $p = new Printer( 'linux' => 'lp' );
+        $p->print_command(
+            linux => {
+                type    => 'pipe',
+                command => "lp -d $name",
+            }
+        );
+
+        $result = $p->print($data);
+    }
+
+    return ( $result eq '1', $error );
 }
 
-## If your tool is complicated enough to needs it's own setting/configuration
-## you will want to add a 'configure' method to your plugin like so.
-## Here I am throwing all the logic into the 'configure' method, but it could
-## be split up like the 'report' method is.
 sub configure {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
@@ -85,12 +137,13 @@ sub configure {
     unless ( $cgi->param('save') ) {
         my $template = $self->get_template({ file => 'configure.tt' });
 
+        eval "use Net::Printer; 1" or $template->param( no_net_printer => 1 );
+        eval "use Printer; 1" or $template->param( no_printer => 1 );
+        eval "use HTML::HTMLDoc; 1" or $template->param( no_html_htmldoc => 1 );
+
         ## Grab the values we already have for our settings, if any exist
         $template->param(
-            enable_opac_payments => $self->retrieve_data('enable_opac_payments'),
-            foo             => $self->retrieve_data('foo'),
-            bar             => $self->retrieve_data('bar'),
-            last_upgraded   => $self->retrieve_data('last_upgraded'),
+            printers_configuration => $self->retrieve_data('printers_configuration'),
         );
 
         $self->output_html( $template->output() );
@@ -98,20 +151,13 @@ sub configure {
     else {
         $self->store_data(
             {
-                enable_opac_payments => $cgi->param('enable_opac_payments'),
-                foo                => $cgi->param('foo'),
-                bar                => $cgi->param('bar'),
-                last_configured_by => C4::Context->userenv->{'number'},
+                printers_configuration => $cgi->param('printers_configuration'),
             }
         );
         $self->go_home();
     }
 }
 
-## This is the 'install' method. Any database tables or other setup that should
-## be done when the plugin if first installed should be executed in this method.
-## The installation method should always return true if the installation succeeded
-## or false if it failed.
 sub install() {
     my ( $self, $args ) = @_;
 
@@ -120,17 +166,12 @@ sub install() {
     return 1;
 }
 
-## This is the 'upgrade' method. It will be triggered when a newer version of a
-## plugin is installed over an existing older version of a plugin
 sub upgrade {
     my ( $self, $args ) = @_;
 
     return 1;
 }
 
-## This method will be run just before the plugin files are deleted
-## when a plugin is uninstalled. It is good practice to clean up
-## after ourselves!
 sub uninstall() {
     my ( $self, $args ) = @_;
 
@@ -138,18 +179,5 @@ sub uninstall() {
 
     return 1;
 }
-
-=head3 cronjob_nightly
-
-Plugin hook running code from a cron job
-
-=cut
-
-sub cronjob_nightly {
-    my ( $self ) = @_;
-
-    print "Remember to clean the kitchen\n";
-}
-
 
 1;
