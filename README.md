@@ -4,7 +4,7 @@ Koha’s Plugin System (available in Koha 3.12+) allows for you to add additiona
 
 # Downloading
 
-From the [release page](https://github.com/bywatersolutions/koha-plugin-print-holds/releases) you can download the relevant *.kpz file
+From the [release page](https://github.com/bywatersolutions/koha-plugin-print-holds/releases) you can download the relevant kpz file
 
 # Installing
 
@@ -19,3 +19,21 @@ To set up the Koha plugin system you must first make some changes to your instal
 * Restart your webserver
 
 Once set up is complete you will need to alter your UseKohaPlugins system preference. On the Tools page you will see the Tools Plugins and on the Reports page you will see the Reports Plugins.
+
+# Configuration
+
+In the printer configuration enter data in the following format:
+```yaml
+---
+CPL:
+  name: "My CPL Printer Name"
+  queue: 192.168.1.22:515
+MPL:
+  name: "My MPL Printer Name"
+```
+
+Where a printer with a queue is assumed to be a networking printer,
+and a printer with just a name is assumed to be connected directly to the server.
+
+
+The queue should always be the format `<ip address>:<port>`.
