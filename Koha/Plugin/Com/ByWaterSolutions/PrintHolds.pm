@@ -9,6 +9,8 @@ use base qw(Koha::Plugins::Base);
 ## We will also need to include any Koha libraries we want to access
 use C4::Context;
 use C4::Auth;
+use C4::Letters;
+
 use YAML::XS;
 
 ## Here we set our plugin version
@@ -47,7 +49,7 @@ sub after_hold_create {
 
     my $printers = Load( $self->retrieve_data('printers_configuration') );
 
-    my $letter = GetPreparedLetter(
+    my $letter = C4::Letters::GetPreparedLetter(
         module      => 'reserves',
         letter_code => 'HOLD_PLACED_PRINT',
         branchcode  => $hold->{branchcode},
@@ -60,7 +62,7 @@ sub after_hold_create {
         }
     );
 
-    if ( defined $printers->{ $hold->{branchcode} } ) {
+    if ( defined $printers->{ $hold->branchcode } ) {
 		my ( $success, $error ) = $self->print(
 			{
                 printer => $printers->{ $hold->branchcode },
