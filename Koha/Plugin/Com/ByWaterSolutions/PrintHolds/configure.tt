@@ -19,9 +19,9 @@
         <strong>ERROR: </strong> Perl module <i>Net::Printer</i> not installed!
     </div>
 [% END %]
-[% IF no_pdf_fromhtml %]
+[% IF no_html_htmldoc %]
     <div class="alert alert-danger" role="alert">
-        <strong>ERROR: </strong> Perl module <i>PDF::FromHTML</i> not installed!
+        <strong>ERROR: </strong> Perl module <i>HTML::HTMLDoc</i> not installed!
     </div>
 [% END %]
 

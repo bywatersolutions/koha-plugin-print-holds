@@ -7,12 +7,10 @@ use Modern::Perl;
 use base qw(Koha::Plugins::Base);
 
 ## We will also need to include any Koha libraries we want to access
-use C4::Auth;
 use C4::Context;
+use C4::Auth;
 use C4::Letters;
 
-use Digest::MD5 qw(md5_base64);
-use PDF::FromHTML;
 use YAML::XS;
 
 ## Here we set our plugin version
@@ -86,15 +84,14 @@ sub print {
 
     return unless ($data);
 
-    my $data = "<pre>$data</pre>" unless $is_html;
-
-    my $digest = md5_base64($data);
-
-    my $pdf = PDF::FromHTML->new( encoding => 'utf-8' );
-    $pdf->load_file(\$data);
-    $pdf->convert();
-    $pdf->write_file("/tmp/$digest.pdf");
-    my $output = qx|pdf2ps /tmp/$digest.pdf /tmp/$digest.ps|;
+    if ($is_html) {
+        require HTML::HTMLDoc;
+        my $htmldoc = new HTML::HTMLDoc();
+        $htmldoc->set_output_format('ps');
+        $htmldoc->set_html_content($data);
+        my $doc = $htmldoc->generate_pdf();
+        $data = $doc->to_string();
+    }
 
     my ( $result, $error );
 
@@ -112,8 +109,7 @@ sub print {
             lineconvert => "YES"
         );
 
-        $result = $p->printfile("/tmp/$digest.ps");
-        warn "RESULT: " . Data::Dumper::Dumper( $result );
+        $result = $p->printstring($data);
 
         $error = $p->printerror();
     }
@@ -145,7 +141,7 @@ sub configure {
 
         eval "use Net::Printer; 1" or $template->param( no_net_printer => 1 );
         eval "use Printer; 1" or $template->param( no_printer => 1 );
-        eval "use PDF::FromHTML; 1" or $template->param( no_pdf_fromhtml => 1 );
+        eval "use HTML::HTMLDoc; 1" or $template->param( no_html_htmldoc => 1 );
 
         ## Grab the values we already have for our settings, if any exist
         $template->param(
