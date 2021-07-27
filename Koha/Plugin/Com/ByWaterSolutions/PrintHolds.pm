@@ -14,7 +14,7 @@ use C4::Letters;
 use YAML::XS;
 
 ## Here we set our plugin version
-our $VERSION = "{VERSION}";
+our $VERSION         = "{VERSION}";
 our $MINIMUM_VERSION = "{MINIMUM_VERSION}";
 
 ## Here is our metadata, some keys are required, some are optional
@@ -58,18 +58,19 @@ sub after_hold_create {
             'biblio'      => $hold->biblionumber,
             'biblioitems' => $hold->biblionumber,
             'items'       => $hold->itemnumber,
-            'borrowers'   => $hold->borrowernumber,,
+            'borrowers'   => $hold->borrowernumber,
+            ,
         }
     );
 
     if ( defined $printers->{ $hold->branchcode } ) {
-		my ( $success, $error ) = $self->print(
-			{
+        my ( $success, $error ) = $self->print(
+            {
                 printer => $printers->{ $hold->branchcode },
-				data    => $letter->{content},
-				is_html => $letter->{is_html},
-			}
-		);
+                data    => $letter->{content},
+                is_html => $letter->{is_html},
+            }
+        );
 
         warn "PrintHolds Plugin Error: $error" if $error;
     }
@@ -137,16 +138,15 @@ sub configure {
     my $cgi = $self->{'cgi'};
 
     unless ( $cgi->param('save') ) {
-        my $template = $self->get_template({ file => 'configure.tt' });
+        my $template = $self->get_template( { file => 'configure.tt' } );
 
-        eval "use Net::Printer; 1" or $template->param( no_net_printer => 1 );
-        eval "use Printer; 1" or $template->param( no_printer => 1 );
+        eval "use Net::Printer; 1"  or $template->param( no_net_printer  => 1 );
+        eval "use Printer; 1"       or $template->param( no_printer      => 1 );
         eval "use HTML::HTMLDoc; 1" or $template->param( no_html_htmldoc => 1 );
 
         ## Grab the values we already have for our settings, if any exist
-        $template->param(
-            printers_configuration => $self->retrieve_data('printers_configuration'),
-        );
+        $template->param( printers_configuration =>
+              $self->retrieve_data('printers_configuration'), );
 
         $self->output_html( $template->output() );
     }
