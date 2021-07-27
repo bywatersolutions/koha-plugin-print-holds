@@ -59,7 +59,6 @@ sub after_hold_create {
             'biblioitems' => $hold->biblionumber,
             'items'       => $hold->itemnumber,
             'borrowers'   => $hold->borrowernumber,
-            ,
         }
     );
 
@@ -146,7 +145,7 @@ sub configure {
 
         ## Grab the values we already have for our settings, if any exist
         $template->param( printers_configuration =>
-              $self->retrieve_data('printers_configuration'), );
+              $self->retrieve_data('printers_configuration') );
 
         $self->output_html( $template->output() );
     }
