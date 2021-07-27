@@ -87,7 +87,7 @@ sub print {
 
     if ($is_html) {
         require HTML::HTMLDoc;
-        my $htmldoc = new HTML::HTMLDoc();
+        my $htmldoc = new HTML::HTMLDoc('mode'=>'file');
         $htmldoc->set_output_format('ps');
         $htmldoc->set_html_content($data);
         my $doc = $htmldoc->generate_pdf();
