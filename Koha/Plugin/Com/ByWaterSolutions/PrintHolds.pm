@@ -53,13 +53,13 @@ sub after_hold_create {
         module      => 'reserves',
         letter_code => 'HOLD_PLACED_PRINT',
         branchcode  => $hold->{branchcode},
-        tables      => {
-            'branches'    => $hold->branchcode,
+        tables => {
             'biblio'      => $hold->biblionumber,
-            'biblioitems' => $hold->biblionumber,
-            'items'       => $hold->itemnumber,
             'borrowers'   => $hold->borrowernumber,
-        }
+            'branches'    => $hold->branchcode,
+            'items'       => $hold->itemnumber,
+            'reserves'    => $hold->id,
+          }
     );
 
     if ( defined $printers->{ $hold->branchcode } ) {
