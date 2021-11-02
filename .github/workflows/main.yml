@@ -14,8 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        koha-version: [master, stable]
-#       koha-version: [master, stable, oldstable]
+        koha-version: [master, stable, oldstable]
 
     steps:
 
@@ -100,16 +99,20 @@ jobs:
         cd ..
         pwd
         ls -alh
+        echo "`date`: Installing YAML::Syck, needed for Koha 20.11 and earlier"
+        docker exec koha_koha_1 apt-get install -y libyaml-syck-perl libemail-valid-perl
+        while [ $? -ne 0 ]; do echo "INSTALL YAML::Syck" && docker exec koha_koha_1 apt-get install -y libyaml-syck-perl libemail-valid-perl; done
         echo "SLEEPING 3 MINUTES"
         sleep 60
         echo "1 MINUTE DONE"
         sleep 60
         echo "2 MINUTES DONE"
         sleep 60
-        docker exec koha_koha_1 apt-get install -y libyaml-syck-perl libemail-valid-perl
-        while [ $? -ne 0 ]; do echo "INSTALL YAML::Syck" && docker exec koha_koha_1 apt-get install -y libyaml-syck-perl libemail-valid-perl; done
         echo "3 MINUTES DONE"
         echo "WAKING UP"
+        echo "DOCKER LOGS"
+        docker logs koha_koha_1 2>&1
+        echo "/DOCKER LOGS"
         docker cp $GITHUB_REPO/. koha_koha_1:/var/lib/koha/kohadev/plugins
         docker exec koha_koha_1 bash -c 'prove /var/lib/koha/kohadev/plugins/t'
         
