@@ -58,7 +58,7 @@ sub after_hold_create {
             'borrowers'   => $hold->borrowernumber,
             'branches'    => $hold->branchcode,
             'items'       => $hold->itemnumber,
-            'reserves'    => $hold->id,
+            'reserves'    => $hold->unblessed,
           }
     );
 
