@@ -44,15 +44,20 @@ sub new {
     return $self;
 }
 
-sub after_hold_create {
-    my ( $self, $hold ) = @_;
+sub after_hold_action {
+    my ( $self, $params ) = @_;
+
+    my $action = $params->{action};
+    my $hold   = $params->{payload}->{hold};
+
+    return unless $action eq 'create';
 
     my $printers = Load( $self->retrieve_data('printers_configuration') );
 
     my $letter = C4::Letters::GetPreparedLetter(
         module      => 'reserves',
         letter_code => 'HOLD_PLACED_PRINT',
-        branchcode  => $hold->{branchcode},
+        branchcode  => $hold->branchcode,
         tables => {
             'biblio'      => $hold->biblionumber,
             'borrowers'   => $hold->borrowernumber,
